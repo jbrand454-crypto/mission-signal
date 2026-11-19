@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission: Signal — Controlling Processes (G7T2L5)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#eaf4ff; --dim:#9fb6d1; --bg1:#050b1a; --bg2:#0b1d3a;
+  --glass:rgba(16,34,66,.72); --line:rgba(140,190,255,.18);
+  --cyan:#3fe0ff; --gold:#ffc94a; --coral:#ff7a6b; --green:#5ef0a0; --pink:#ff9cc8; --violet:#a98bff;
+  --r:18px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:Lexend,system-ui,sans-serif;color:var(--ink);font-size:18px;line-height:1.45;
+  background:radial-gradient(1200px 700px at 70% -10%,#16346b 0%,transparent 60%),
+             radial-gradient(900px 600px at -10% 110%,#0d3b4f 0%,transparent 60%),
+             linear-gradient(180deg,var(--bg2),var(--bg1));
+  min-height:100vh;}
+button{font-family:inherit;font-size:1rem;cursor:pointer;color:inherit}
+button:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.app{max-width:1280px;margin:0 auto;padding:14px 16px 28px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand .logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#1c4d8f,#0e2a55);box-shadow:0 0 18px rgba(63,224,255,.35) inset,0 0 0 1px var(--line)}
+.brand h1{font-size:1.15rem;margin:0;font-weight:800;letter-spacing:.2px}
+.brand small{display:block;color:var(--dim);font-weight:500;font-size:.8rem}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:999px;padding:7px 12px;
+  font-size:.85rem;display:flex;gap:6px;align-items:center;color:var(--dim)}
+.tab .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.08);font-weight:700;font-size:.8rem}
+.tab.cur{color:#06142a;background:var(--cyan);border-color:var(--cyan);font-weight:700}
+.tab.cur .n{background:rgba(0,0,0,.15)}
+.tab.done .n{background:var(--green);color:#06142a}
+.tab:disabled{opacity:.4;cursor:not-allowed}
+.tool{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:12px;padding:8px 12px;font-size:.85rem}
+.tool[aria-pressed=true]{background:var(--gold);color:#1a1200;border-color:var(--gold)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+@media (max-width:980px){main{grid-template-columns:1fr}}
+.stage{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);
+  background:#071428;box-shadow:0 20px 60px rgba(0,0,0,.45);aspect-ratio:8/5}
+.stage svg{display:block;width:100%;height:100%}
+.stage .over{position:absolute;inset:0}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:18px;backdrop-filter:blur(10px);
+  box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.kicker{font-size:.78rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--cyan)}
+.panel h2{margin:2px 0 10px;font-size:1.45rem;line-height:1.2}
+.say{background:rgba(63,224,255,.08);border:1px solid rgba(63,224,255,.3);border-radius:14px;padding:12px 14px;margin:10px 0;font-size:1.05rem}
+.say b{color:var(--gold)}
+.tasks{list-style:none;padding:0;margin:10px 0}
+.tasks li{display:flex;gap:10px;align-items:flex-start;padding:6px 0;color:var(--dim);font-size:.95rem}
+.tasks li .box{flex:none;width:24px;height:24px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;font-size:.8rem}
+.tasks li.now{color:var(--ink);font-weight:600}
+.tasks li.now .box{border-color:var(--cyan);box-shadow:0 0 10px rgba(63,224,255,.5)}
+.tasks li.ok{color:var(--ink)}
+.tasks li.ok .box{background:var(--green);border-color:var(--green);color:#06142a}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btn{border:0;border-radius:14px;padding:12px 16px;font-weight:700;min-height:48px;
+  background:linear-gradient(180deg,#2a5ea8,#1c4280);box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 6px 16px rgba(0,0,0,.3)}
+.btn:hover{filter:brightness(1.12)}
+.btn.go{background:linear-gradient(180deg,#ffd76a,#f0b02e);color:#241800}
+.btn.cy{background:linear-gradient(180deg,#5eeaff,#1fb6d9);color:#032030}
+.btn.ghost{background:rgba(255,255,255,.06)}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.btn.sel{outline:3px solid var(--gold)}
+.btn.right{background:linear-gradient(180deg,#6af5ad,#2fc77d);color:#04210f}
+.btn.wrong{background:linear-gradient(180deg,#ff9a8e,#e8604f);color:#2a0500}
+.fb{min-height:1.5em;margin:8px 0;font-weight:600;font-size:.98rem}
+.fb.good{color:var(--green)} .fb.bad{color:var(--coral)} .fb.info{color:var(--gold)}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.vocab{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.vocab span{font-size:.8rem;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--dim)}
+.vocab span.got{color:#06142a;background:var(--gold);border-color:var(--gold);font-weight:700}
+.added{display:inline-block;font-size:.72rem;font-weight:700;background:rgba(169,139,255,.18);color:#d6c9ff;
+  border:1px solid rgba(169,139,255,.5);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle}
+.card{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+.card h4{margin:0 0 6px;font-size:1rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid var(--line);background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;font-weight:600;min-height:46px}
+.chip.sel{border-color:var(--gold);box-shadow:0 0 12px rgba(255,201,74,.45)}
+.chip.placed{opacity:.35;pointer-events:none}
+.bins{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.bin{border:2px dashed var(--line);border-radius:14px;padding:10px;min-height:96px;text-align:left;background:rgba(255,255,255,.03)}
+.bin h5{margin:0 0 6px;font-size:.95rem}
+.bin .in{font-size:.85rem;color:var(--green);font-weight:600}
+.bin.cns h5{color:var(--gold)} .bin.pns h5{color:var(--green)}
+textarea{width:100%;min-height:84px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--ink);
+  font-family:inherit;font-size:1rem;padding:10px}
+.toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(4,12,28,.85);border:1px solid var(--line);
+  padding:8px 14px;border-radius:999px;font-weight:600;font-size:.95rem;pointer-events:none;opacity:0;transition:.3s;white-space:nowrap}
+.toast.show{opacity:1}
+.hit{cursor:pointer}
+.hit:hover .hl, .hit:focus .hl{opacity:.35}
+.hl{opacity:0;transition:.2s}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes swim{from{transform:translateX(-320px)}to{transform:translateX(1000px)}}
+@keyframes rise{from{transform:translateY(0);opacity:.8}to{transform:translateY(-360px);opacity:0}}
+@keyframes ray{0%,100%{opacity:.08}50%{opacity:.2}}
+.chain{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:.85rem;margin-top:6px}
+.chain span{padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.06);color:var(--dim)}
+.chain span.lit{background:var(--cyan);color:#03202c;font-weight:700}
+.chain i{color:var(--dim);font-style:normal}
+.react{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-size:1.6rem;font-weight:800;
+  cursor:pointer;user-select:none;transition:background .1s}
+.react.wait{background:#5a1d24}.react.goGreen{background:#14823f}.react.idle{background:#10284d}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;z-index:50;padding:16px}
+.modal.open{display:grid}
+.modal .box{max-width:720px;max-height:86vh;overflow:auto;background:#0d1f3e;border:1px solid var(--line);border-radius:20px;padding:22px}
+.modal h3{margin-top:0}
+.modal li{margin:4px 0}
+.small{font-size:.85rem;color:var(--dim)}
+.splash{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;
+  background:radial-gradient(closest-side,rgba(5,11,26,.2),rgba(5,11,26,.85))}
+.splash h2{font-size:clamp(1.6rem,4vw,2.8rem);margin:0 0 8px;text-shadow:0 0 30px rgba(63,224,255,.6)}
+.splash p{max-width:520px;margin:0 auto 16px;color:#cfe3ff}
+@media (max-width:600px){.splash p{display:none}}
+.meterlbl{font-size:13px;fill:#cfe3ff;font-family:Lexend,system-ui,sans-serif}
+svg text{font-family:Lexend,system-ui,sans-serif}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 26 26"><path d="M2 13h6l3-8 4 16 3-8h6" fill="none" stroke="#3fe0ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div><h1>Mission: Signal</h1><small>G7 · Topic 2 · Lesson 5 — Controlling Processes</small></div>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Stations"></nav>
+    <button class="tool" id="readBtn" aria-pressed="false" title="Read the directions out loud">🔊 Read to me</button>
+    <button class="tool" id="teachBtn">Teacher notes</button>
+  </header>
+  <main>
+    <section class="stage" id="stage" aria-live="polite"></section>
+    <aside class="panel" id="panel"></aside>
+  </main>
+</div>
+
+<div class="modal" id="teach" role="dialog" aria-modal="true" aria-labelledby="tTitle">
+  <div class="box">
+    <h3 id="tTitle">Teacher Notes</h3>
+    <p><b>Lesson:</b> Savvas Elevate Science Gr. 7, Topic 2, Lesson 5 “Controlling Processes” (MS-LS1-8). About 35–45 minutes. Students can work alone or in pairs.</p>
+    <p><b>From the lesson slides (textbook pp. 118–121):</b></p>
+    <ul>
+      <li>Stimulus and response: the diver and sharks (Connect It)</li>
+      <li>Neurons: dendrites, axon, axon tips; sensory neurons, interneurons, motor neurons</li>
+      <li>Nerve impulses; synapse (the signal changes from electrical to chemical and back)</li>
+      <li>Path of an impulse: dendrite → axon → axon tip → synapse → dendrite</li>
+      <li>CNS (brain + spinal cord) and PNS (nerves that branch out to the rest of the body)</li>
+      <li>Cerebrum, cerebellum, brain stem; what happens if the brain stem is damaged</li>
+      <li>Hands-on Lab: “Test how your knee responds to an external stimulus”</li>
+    </ul>
+    <p><b>Added beyond the slides</b> <span class="added">Beyond the slides</span> (basic, well-established science):</p>
+    <ul>
+      <li><b>Station 4 – Reflexes:</b> the reflex arc (knee → spinal cord → muscle, with the brain told afterward). The slides list <i>reflex</i> only as a vocabulary word and mention the knee lab. The reaction times are rough figures (knee reflex about 0.05 s; a choice reaction about 0.2–0.3 s), and the animation is in slow motion.</li>
+      <li><b>Station 5 – Endocrine system:</b> glands release hormones into the blood; the pancreas releases insulin and glucagon to keep blood sugar in a normal range; negative feedback. The slides list this section only in the outline (pp. 124–126) and <i>gland</i> and <i>negative feedback</i> as vocabulary. The blood sugar numbers are a simplified model, not real medical values.</li>
+    </ul>
+    <p><b>Note:</b> Some slide headings in the deck still say “Circulatory System” or “G7T2L4”. This activity follows the Lesson 5 content, not those labels.</p>
+    <p><b>Student work:</b> In Station 6, students write answers to the three guiding questions and tap <i>Copy my report</i> to paste it into Google Classroom, a doc, or your LMS. (Printing and downloads are blocked inside this page, so copying is the way out.)</p>
+    <div class="row"><button class="btn cy" id="unlockAll">Unlock all stations</button><button class="btn ghost" id="resetAll">Start over (clear progress)</button><button class="btn" id="closeTeach">Close</button></div>
+  </div>
+</div>
+
+<script>
+/* ============ CORE ============ */
+const $=s=>document.querySelector(s);
+const stage=$('#stage'), panel=$('#panel');
+const NS='http://www.w3.org/2000/svg';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let RUN=0; // increments each station change; long animations check it
+const store={get(k,d){try{const v=localStorage.getItem('g7t2l5_'+k);return v?JSON.parse(v):d}catch(e){return d}},
+             set(k,v){try{localStorage.setItem('g7t2l5_'+k,JSON.stringify(v))}catch(e){}}};
+const S=store.get('state',{done:[],unlocked:1,data:{},words:[]});
+function save(){store.set('state',S)}
+
+const STATIONS=[
+ {id:'start', name:'Start', icon:'🚀'},
+ {id:'sense', name:'Sense It', icon:'🦈'},
+ {id:'neuron', name:'Neuron Lab', icon:'⚡'},
+ {id:'control', name:'Control Center', icon:'🧠'},
+ {id:'reflex', name:'Reflex Test', icon:'🦵'},
+ {id:'gland', name:'Chemical Messengers', icon:'🧪'},
+ {id:'report', name:'Mission Report', icon:'📝'}
+];
+const VOCAB=['stimulus','response','neuron','impulse','synapse','brain','spinal cord','reflex','gland','negative feedback'];
+let cur=0, speakText='';
+
+function renderTabs(){
+  const t=$('#tabs'); t.innerHTML='';
+  STATIONS.forEach((s,i)=>{
+    if(i===0) return;
+    const b=document.createElement('button');
+    b.className='tab'+(i===cur?' cur':'')+(S.done.includes(s.id)?' done':'');
+    b.innerHTML=`<span class="n">${S.done.includes(s.id)?'✓':i}</span>${s.name}`;
+    b.disabled=i>S.unlocked; b.onclick=()=>go(i);
+    b.setAttribute('aria-current',i===cur?'step':'false');
+    t.appendChild(b);
+  });
+}
+function go(i){
+  RUN++; cur=i; stopSpeak();
+  stage.innerHTML=''; panel.innerHTML='';
+  renderTabs();
+  BUILD[STATIONS[i].id]();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function finish(id){
+  if(!S.done.includes(id)) S.done.push(id);
+  S.unlocked=Math.max(S.unlocked,cur+1); save(); renderTabs();
+  const n=$('#nextBtn'); if(n){n.disabled=false;n.classList.add('go');n.focus({preventScroll:true})}
+}
+function learn(...w){w.forEach(x=>{if(!S.words.includes(x))S.words.push(x)});save();const v=$('#vocab');if(v)v.innerHTML=vocabHTML()}
+function vocabHTML(){return VOCAB.map(w=>`<span class="${S.words.includes(w)?'got':''}">${w}</span>`).join('')}
+
+/* panel scaffolding */
+function panelShell({kicker,title,added=false,tasks}){
+  panel.innerHTML=`<div class="kicker">${kicker}</div>
+  <h2>${title}${added?'<span class="added" title="This part adds basic science beyond the lesson slides">Beyond the slides</span>':''}</h2>
+  <div class="say" id="say"></div>
+  <ul class="tasks" id="tasks">${tasks.map((t,i)=>`<li data-i="${i}"><span class="box">${i+1}</span><span>${t}</span></li>`).join('')}</ul>
+  <div id="work"></div>
+  <div class="fb" id="fb" role="status"></div>
+  <div class="small">Words you've unlocked:</div><div class="vocab" id="vocab">${vocabHTML()}</div>
+  <div class="nav"><button class="btn ghost" id="backBtn">◀ Back</button><button class="btn" id="nextBtn" disabled>Next station ▶</button></div>`;
+  $('#backBtn').onclick=()=>go(Math.max(0,cur-1));
+  $('#nextBtn').onclick=()=>go(Math.min(STATIONS.length-1,cur+1));
+  if(S.done.includes(STATIONS[cur].id)){const n=$('#nextBtn');n.disabled=false;n.classList.add('go')}
+  setTask(0);
+}
+function say(html){const el=$('#say');el.innerHTML=html;speakText=el.textContent;if(readOn)speak(speakText)}
+function fb(msg,type='info'){const el=$('#fb');if(el){el.className='fb '+type;el.textContent=msg}}
+function setTask(i){document.querySelectorAll('#tasks li').forEach((li,k)=>{li.className=k<i?'ok':k===i?'now':'';li.querySelector('.box').textContent=k<i?'✓':k+1})}
+function work(html){const w=$('#work');w.innerHTML=html;return w}
+
+/* read aloud */
+let readOn=false;
+function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
+function stopSpeak(){try{speechSynthesis.cancel()}catch(e){}}
+$('#readBtn').onclick=()=>{readOn=!readOn;$('#readBtn').setAttribute('aria-pressed',readOn);if(readOn)speak(speakText);else stopSpeak()};
+
+/* svg helpers */
+function svgEl(tag,attrs={},parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function makeSVG(inner){stage.innerHTML=`<svg viewBox="0 0 800 500" role="img">${SVGDEFS}${inner}</svg><div class="toast" id="toast"></div>`;return stage.querySelector('svg')}
+function toast(t,ms=1800){const el=$('#toast');if(!el)return;el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),ms)}
+const SVGDEFS=`<defs>
+ <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="softglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+ <radialGradient id="spark"><stop offset="0" stop-color="#fff"/><stop offset=".4" stop-color="#3fe0ff"/><stop offset="1" stop-color="#3fe0ff" stop-opacity="0"/></radialGradient>
+ <radialGradient id="sparkGold"><stop offset="0" stop-color="#fff"/><stop offset=".4" stop-color="#ffc94a"/><stop offset="1" stop-color="#ffc94a" stop-opacity="0"/></radialGradient>
+ <radialGradient id="sparkCoral"><stop offset="0" stop-color="#fff"/><stop offset=".4" stop-color="#ff7a6b"/><stop offset="1" stop-color="#ff7a6b" stop-opacity="0"/></radialGradient>
+</defs>`;
+/* send a glowing impulse along a path; resolves when done */
+function travel(svg,d,dur=1200,color='#3fe0ff',grad='spark',keep=false){
+  const myRun=RUN;
+  return new Promise(res=>{
+    const g=svgEl('g',{},svg);
+    const p=svgEl('path',{d,fill:'none',stroke:color,'stroke-width':5,'stroke-linecap':'round',filter:'url(#glow)',opacity:.9},g);
+    const L=p.getTotalLength(); p.setAttribute('stroke-dasharray',L); p.setAttribute('stroke-dashoffset',L);
+    const head=svgEl('circle',{r:16,fill:`url(#${grad})`},g);
+    const t0=performance.now();
+    function f(t){
+      if(myRun!==RUN){g.remove();return res(false)}
+      const k=Math.min(1,(t-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      const pt=p.getPointAtLength(L*e); head.setAttribute('cx',pt.x); head.setAttribute('cy',pt.y);
+      p.setAttribute('stroke-dashoffset',L*(1-e));
+      if(k<1) requestAnimationFrame(f);
+      else{ head.remove(); if(!keep){p.style.transition='opacity .8s';p.setAttribute('opacity',0);setTimeout(()=>g.remove(),900)} res(true)}
+    }
+    requestAnimationFrame(f);
+  });
+}
+function tween(dur,fn){const myRun=RUN;return new Promise(r=>{const t0=performance.now();(function f(t){if(myRun!==RUN)return r(false);const k=Math.min(1,(t-t0)/dur);fn(k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2);k<1?requestAnimationFrame(f):r(true)})(t0)})}
+function hitify(el,label,fn){el.classList.add('hit');el.setAttribute('tabindex','0');el.setAttribute('role','button');el.setAttribute('aria-label',label);
+  el.addEventListener('click',fn);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fn()}})}
+
+/* ============ STATIONS ============ */
+const BUILD={};
+
+/* ---------- START ---------- */
+BUILD.start=()=>{
+  makeSVG(`<rect width="800" height="500" fill="#061226"/>
+   <g opacity=".9">${[...Array(40)].map((_,i)=>`<circle cx="${(i*197)%800}" cy="${(i*113)%500}" r="${1+(i%3)}" fill="#3fe0ff" opacity="${.15+(i%5)/10}"/>`).join('')}</g>
+   <g transform="translate(400 250)" filter="url(#glow)">
+     <path d="M-300 0 h120 l30 -70 l40 140 l30 -70 h80" fill="none" stroke="#3fe0ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+     <path d="M0 0 h80 l30 -70 l40 140 l30 -70 h120" fill="none" stroke="#ffc94a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+   </g>`);
+  const sp=document.createElement('div');sp.className='splash';
+  sp.innerHTML=`<div><div class="kicker">Virtual Science Investigation</div><h2>Mission: Signal</h2>
+   <p>Your body has a control center. It notices what is going on and tells your body what to do. Your mission is to follow the messages and find out how they work.</p>
+   <button class="btn go" id="startBtn" style="font-size:1.15rem;padding:14px 26px">Start the mission ▶</button></div>`;
+  stage.appendChild(sp);
+  panel.innerHTML=`<div class="kicker">Mission briefing</div><h2>How does your body control itself?</h2>
+   <div class="say" id="say">You will visit <b>5 stations</b>. At each one, read the short directions, try things out, and check off each task. Then write your mission report.</div>
+   <div class="card"><h4>Your 3 big questions</h4>
+   <ol style="margin:0;padding-left:20px;font-size:.95rem">
+   <li>Which systems control processes in the human body?</li>
+   <li>How does the body sense and respond to stimuli?</li>
+   <li>How do the cells of the nervous system respond to stimuli?</li></ol></div>
+   <div class="card small">Tip: Tap <b>🔊 Read to me</b> at the top to hear the directions out loud.</div>
+   <div class="nav"><span></span><button class="btn go" id="nextBtn">Begin ▶</button></div>`;
+  speakText=$('#say').textContent;
+  const b=()=>{S.unlocked=Math.max(S.unlocked,1);save();go(1)};
+  $('#startBtn').onclick=b; $('#nextBtn').onclick=b;
+};
+
+/* ---------- 1. SENSE IT ---------- */
+BUILD.sense=()=>{
+  const shark=(id,s)=>`<g id="${id}" transform="scale(${s})">
+     <rect x="-40" y="-30" width="270" height="110" fill="transparent"/>
+     <path class="hl" d="M-35 30 L0 30 C40 5 120 0 180 20 L222 28 L180 40 C120 55 40 50 0 30" fill="none" stroke="#ffc94a" stroke-width="10" filter="url(#glow)"/>
+     <path d="M90 10 L112 -26 L132 14 Z" fill="#6c859c"/>
+     <path d="M0 30 L-36 -2 L-24 30 L-36 62 Z" fill="#6c859c"/>
+     <path d="M0 30 C40 5 120 0 180 20 L222 28 L180 40 C120 55 40 50 0 30 Z" fill="url(#sharkG)"/>
+     <path d="M100 44 L82 72 L128 47 Z" fill="#5a7187"/>
+     <path d="M150 26 l3 10 M158 25 l3 10 M166 25 l3 10" stroke="#3c5166" stroke-width="2"/>
+     <circle cx="192" cy="25" r="2.6" fill="#0a1220"/></g>`;
+  const svg=makeSVG(`<defs><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b7fb5"/><stop offset=".5" stop-color="#0d4a7c"/><stop offset="1" stop-color="#061c3a"/></linearGradient>
+     <linearGradient id="sharkG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8aa3b8"/><stop offset=".55" stop-color="#7690a6"/><stop offset=".6" stop-color="#e6eef5"/><stop offset="1" stop-color="#cfdbe6"/></linearGradient></defs>
+   <rect width="800" height="500" fill="url(#sea)"/>
+   ${[0,1,2,3].map(i=>`<path d="M${120+i*170} 0 L${60+i*170} 500 L${150+i*170} 500 Z" fill="#bfefff" style="animation:ray ${5+i}s ease-in-out infinite"/>`).join('')}
+   <path d="M0 470 Q120 440 240 465 T480 460 T800 455 V500 H0 Z" fill="#0a2a3c"/>
+   <g id="weed" fill="#1f7a5a">${[40,70,95,700,735].map(x=>`<path d="M${x} 480 q-14 -40 4 -80 q-18 -40 2 -80" stroke="#2aa274" stroke-width="7" fill="none" stroke-linecap="round"/>`).join('')}</g>
+   <g style="animation:swim 26s linear infinite;animation-delay:-8s"><g transform="translate(0 300)" opacity=".5">${shark('shark2',.55)}</g></g>
+   <g id="fish" transform="translate(150 360)">${[[0,0],[26,10],[10,22],[40,-6],[50,18]].map(([x,y])=>`<g transform="translate(${x} ${y})"><ellipse rx="10" ry="5" fill="#ffd34d"/><path d="M9 0 l9 -6 v12z" fill="#ffd34d"/><circle cx="-5" cy="-1" r="1.4" fill="#222"/></g>`).join('')}<rect x="-20" y="-20" width="90" height="55" fill="transparent"/></g>
+   <g style="animation:swim 16s linear infinite"><g transform="translate(0 120)">${shark('shark1',1)}</g></g>
+   <g id="diverWrap" transform="translate(540 360)"><g id="diver">
+     <g id="bubbles">${[0,1,2,3].map(i=>`<circle cx="${-14+i*3}" cy="-12" r="${3+i%2*2}" fill="none" stroke="#cfefff" stroke-width="1.5" style="animation:rise ${3+i}s linear infinite;animation-delay:${i*.8}s"/>`).join('')}</g>
+     <rect x="18" y="-24" width="54" height="14" rx="7" fill="#ffc94a"/>
+     <path d="M88 -2 L148 -10 L150 -2 L90 6 Z" fill="#14233d"/><path d="M88 6 L146 14 L144 22 L88 13 Z" fill="#14233d"/>
+     <path d="M146 -14 L176 -24 L172 0 Z M144 10 L174 8 L164 32 Z" fill="#3fe0ff"/>
+     <rect x="6" y="-12" width="88" height="24" rx="12" fill="#1a2c4d"/>
+     <rect x="6" y="-3" width="88" height="5" fill="#3fe0ff" opacity=".7"/>
+     <path d="M22 4 L-4 26" stroke="#1a2c4d" stroke-width="8" stroke-linecap="round"/>
+     <circle cx="0" cy="-2" r="15" fill="#f3c9a3"/><path d="M-14 -8 Q0 -22 14 -8" fill="#3b2a1e"/>
+     <rect x="-16" y="-9" width="14" height="10" rx="3" fill="#7fd8ff" stroke="#123" stroke-width="2"/>
+     <g id="nerveMap" opacity="0">
+       <circle cx="4" cy="-8" r="7" fill="#ff9cc8" opacity=".85"/>
+     </g>
+   </g></g>`);
+  const sh1=svg.querySelector('#shark1'), sh2=svg.querySelector('#shark2'), fish=svg.querySelector('#fish'), weed=svg.querySelector('#weed'), diver=svg.querySelector('#diver');
+  panelShell({kicker:'Station 1',title:'Sense It: Stimulus → Response',
+    tasks:['Find the <b>stimulus</b> in the ocean','Pick the senses the diver uses','Watch the message travel','Explain why she responds']});
+  say('A diver is exploring the ocean. Something nearby causes her body to react. That “something” is called a <b>stimulus</b>. <br>👉 <b>Tap the stimulus</b> in the picture.');
+  let step=0;
+  const wrongPick=(what)=>{if(step!==0)return;fb(`The ${what} is part of the ocean, but it is not causing the diver to react. Look for something big that could be a danger.`,'bad')};
+  const rightPick=()=>{if(step!==0)return;step=1;sh1.querySelector('.hl').style.opacity=1;
+    fb('Yes! The shark is the stimulus. A stimulus is anything that causes the body to react.','good');learn('stimulus');setTask(1);senses()};
+  hitify(sh1,'Shark',rightPick); hitify(sh2,'Small shark in the distance',rightPick);
+  hitify(fish,'Yellow fish',()=>wrongPick('yellow fish')); hitify(weed,'Seaweed',()=>wrongPick('seaweed'));
+  function senses(){
+    say('Your body uses <b>senses</b> to pick up a stimulus. 👉 Which senses tell the diver about the shark? <b>Find the two that work here.</b>');
+    work(`<div class="row" id="sns">
+      <button class="btn" data-s="eyes">👁️ Eyes: she SEES it</button>
+      <button class="btn" data-s="skin">✋ Skin: she FEELS it brush by</button>
+      <button class="btn" data-s="nose">👃 Nose: she SMELLS it</button>
+      <button class="btn" data-s="tongue">👅 Tongue: she TASTES it</button></div>`);
+    const found=new Set();
+    document.querySelectorAll('#sns .btn').forEach(b=>b.onclick=()=>{
+      const s=b.dataset.s;
+      if(s==='eyes'||s==='skin'){b.classList.add('right');found.add(s);fb(s==='eyes'?'Right! Her eyes see the shark.':'Right! Nerves in her skin feel the shark brush past.','good')}
+      else{b.classList.add('wrong');fb(s==='nose'?'Not this time. Her mask covers her nose, and she breathes air from her tank.':'Nope. She is not tasting the shark!','bad')}
+      if(found.size===2){setTask(2);setTimeout(message,700)}
+    });
+  }
+  function message(){
+    say('Now the senses send a <b>message</b> along nerves to her brain. The brain decides what to do. Then it sends a message to her muscles. 👉 Tap <b>Send the message</b>.');
+    work(`<button class="btn cy" id="sendBtn">⚡ Send the message</button>
+      <div class="chain" id="chain"><span>Stimulus</span><i>→</i><span>Senses</span><i>→</i><span>Nerves</span><i>→</i><span>Brain</span><i>→</i><span>Muscles</span><i>→</i><span>Response</span></div>`);
+    $('#sendBtn').onclick=async()=>{
+      $('#sendBtn').disabled=true;
+      const lit=i=>document.querySelectorAll('#chain span')[i]?.classList.add('lit');
+      const wrap=svg.querySelector('#diverWrap');
+      lit(0);diver.querySelector('#nerveMap').setAttribute('opacity',1);
+      // pause shark animation so the scene is calm
+      svg.querySelectorAll('[style*="swim"]').forEach(g=>g.style.animationPlayState='paused');
+      const o={x:540,y:360};
+      lit(1); await travel(svg,`M${sh1Pos().x} ${sh1Pos().y} L${o.x-8} ${o.y-4}`,900,'#ffc94a','sparkGold');
+      lit(2); await travel(svg,`M${o.x-8} ${o.y-4} Q ${o.x-6} ${o.y-20} ${o.x+4} ${o.y-8}`,700);
+      lit(3); toast('🧠 Brain: “Shark! Move to a safer spot.”',2200); await sleep(900);
+      await travel(svg,`M${o.x+4} ${o.y-8} L${o.x+90} ${o.y} L${o.x+150} ${o.y+2}`,1100,'#ff7a6b','sparkCoral');
+      lit(4); lit(5);
+      // response: turn and swim away (down-right)
+      await tween(1600,k=>{const x=540+k*170,y=360+k*70;wrap.setAttribute('transform',`translate(${x} ${y}) scale(${1-2*Math.min(k*3,1)} 1)`)});
+      learn('response');
+      fb('The diver turned and swam to a safer place. That action is her response.','good');
+      setTask(3); explain();
+    };
+  }
+  function sh1Pos(){const r=sh1.getBoundingClientRect(),s=svg.getBoundingClientRect();return{x:(r.x+r.width*.75-s.x)*800/s.width,y:(r.y+r.height*.5-s.y)*500/s.height}}
+  function explain(){
+    say('Think about it. 👉 <b>Why</b> does the diver know to move away from the shark?');
+    work(`<div class="row" id="why" style="flex-direction:column">
+      <button class="btn" data-ok="1">She learned that sharks can be unpredictable, so she moves to a safer place to watch.</button>
+      <button class="btn" data-ok="0">Sharks are always friendly, so she wants to get closer.</button>
+      <button class="btn" data-ok="0">Her tank told her to move.</button></div>`);
+    document.querySelectorAll('#why .btn').forEach(b=>b.onclick=()=>{
+      if(b.dataset.ok==='1'){b.classList.add('right');fb('Exactly. Her nervous system uses what she sensed AND what she remembers to choose a response.','good');
+        S.data.senseDone=true;setTask(4);finish('sense');
+        say('<b>Station complete!</b> Your nervous system is your body’s communication network. It takes in information (stimulus) and directs what your body does (response).');}
+      else{b.classList.add('wrong');fb('Try again. Think about what she has learned about sharks.','bad')}
+    });
+  }
+};
+
+/* ---------- 2. NEURON LAB ---------- */
+BUILD.neuron=()=>{
+  const dendA=`M118 236 L82 200 L52 178 M82 200 L64 220 M120 252 L74 252 L40 240 M74 252 L46 270 M120 266 L86 304 L60 330 M86 304 L96 336 M130 222 L118 180 L126 150`;
+  const dendB=`M652 236 L612 214 L592 226 M652 264 L612 286 L594 276 M660 228 L640 186 L652 160 M662 274 L644 318 L660 344`;
+  const svg=makeSVG(`<rect width="800" height="500" fill="#0a1830"/>
+   <g opacity=".12">${[...Array(18)].map((_,i)=>`<circle cx="${(i*151)%800}" cy="${(i*97)%500}" r="${30+(i%4)*14}" fill="#3a1e5c"/>`).join('')}</g>
+   <text x="24" y="38" fill="#9fb6d1" font-size="16" font-family="Lexend, system-ui, sans-serif">Two neurons, side by side (magnified thousands of times)</text>
+   <g id="nA">
+     <path d="${dendA}" stroke="#ff8fb1" stroke-width="7" stroke-linecap="round" fill="none"/>
+     <path d="M184 250 L522 250" stroke="#ff8fb1" stroke-width="9" stroke-linecap="round"/>
+     ${[0,1,2,3,4,5].map(i=>`<rect x="${205+i*52}" y="238" width="40" height="24" rx="12" fill="#f4e3c1" stroke="#d9c39a"/>`).join('')}
+     <path d="M520 250 L550 226 M520 250 L556 250 M520 250 L550 274" stroke="#ff8fb1" stroke-width="6" stroke-linecap="round"/>
+     <circle cx="552" cy="225" r="9" fill="#ff6f9c"/><circle cx="558" cy="250" r="9" fill="#ff6f9c"/><circle cx="552" cy="275" r="9" fill="#ff6f9c"/>
+     <circle cx="150" cy="250" r="38" fill="#ff6f9c"/><circle cx="150" cy="250" r="38" fill="url(#spark)" opacity=".15"/>
+     <circle cx="146" cy="246" r="14" fill="#7a2a7a"/><circle cx="142" cy="242" r="4" fill="#d06bd0"/>
+   </g>
+   <g id="nB">
+     <path d="${dendB}" stroke="#7fc8ff" stroke-width="7" stroke-linecap="round" fill="none"/>
+     <path d="M712 250 L800 250" stroke="#7fc8ff" stroke-width="9"/>
+     <circle cx="680" cy="250" r="34" fill="#4aa6ef"/><circle cx="684" cy="246" r="13" fill="#1b4b8a"/>
+     <path d="M590 226 L612 214 M590 250 L622 250 M590 276 L612 286" stroke="#7fc8ff" stroke-width="6" stroke-linecap="round"/>
+   </g>
+   <g id="labels" font-family="Lexend, system-ui, sans-serif" font-size="17" font-weight="700"></g>
+   <g id="chem"></g>`);
+  const zones=[
+    {k:'dendA',name:'Dendrite',x:30,y:140,w:96,h:210,lx:30,ly:372,desc:'picks up information'},
+    {k:'axon',name:'Axon',x:186,y:222,w:330,h:56,lx:300,ly:214,desc:'carries the message along the cell'},
+    {k:'tip',name:'Axon tip',x:518,y:206,w:46,h:88,lx:500,ly:322,desc:'passes the message on'},
+    {k:'syn',name:'Synapse',x:566,y:206,w:24,h:88,lx:548,ly:186,desc:'the tiny gap between neurons'},
+    {k:'dendB',name:'Dendrite',x:592,y:150,w:66,h:200,lx:612,ly:372,desc:'of the next neuron receives it'}];
+  const lab=svg.querySelector('#labels');
+  zones.forEach(z=>{const g=svgEl('g',{},svg);svgEl('rect',{x:z.x,y:z.y,width:z.w,height:z.h,rx:12,fill:'rgba(255,201,74,.12)',stroke:'#ffc94a','stroke-width':2,'stroke-dasharray':'6 5',class:'hl'},g);svgEl('rect',{x:z.x,y:z.y,width:z.w,height:z.h,fill:'transparent'},g);z.g=g});
+  panelShell({kicker:'Station 2',title:'Neuron Lab',tasks:['Trace the path of a message','Fire a nerve impulse','Watch the synapse up close','Match each neuron to its job']});
+  say('A <b>neuron</b> is a nerve cell. It carries messages. 👉 <b>Tap the parts in the order a message travels</b>, starting where the neuron picks up information.');
+  learn('neuron');
+  work(`<div class="chain" id="order"><span>?</span><i>→</i><span>?</span><i>→</i><span>?</span><i>→</i><span>?</span><i>→</i><span>?</span></div>`);
+  let idx=0;
+  zones.forEach((z,i)=>hitify(z.g,z.name,()=>{
+    if(idx>=5)return;
+    if(i===idx){
+      z.g.querySelector('.hl').style.opacity=.55;
+      const t=svgEl('text',{x:z.lx,y:z.ly,fill:'#ffc94a'},lab);t.textContent=z.name;
+      document.querySelectorAll('#order span')[idx].textContent=z.name;document.querySelectorAll('#order span')[idx].classList.add('lit');
+      fb(`${z.name}: ${z.desc}.`,'good'); idx++;
+      if(idx===4)learn('synapse');
+      if(idx===5){setTask(1);fire()}
+    } else {
+      const hint=['Start at the branches that pick up information, on the far left.','Next, the long “cable” that carries the message.','Now the ends of the axon, where the message leaves.','Next is the tiny gap between the two cells.','Last, the branches of the second neuron.'][idx];
+      fb(`That's the ${z.name.toLowerCase()}. ${hint}`,'bad');
+    }
+  }));
+  function fire(){
+    say('Great path! The message a neuron carries is called a <b>nerve impulse</b>. 👉 Tap <b>Fire!</b> to send one. Watch what happens at the synapse.');
+    work(`<div class="chain" id="order">${zones.map(z=>`<span class="lit">${z.name}</span>`).join('<i>→</i>')}</div>
+      <div class="row"><button class="btn cy" id="fireBtn">⚡ Fire!</button>
+      <label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="slow" checked> Slow motion at the synapse</label></div>`);
+    let fired=0;
+    $('#fireBtn').onclick=async()=>{
+      $('#fireBtn').disabled=true; const slow=$('#slow').checked; const run=RUN;
+      toast('⚡ Electrical signal');
+      await travel(svg,'M50 180 L82 200 L118 236 L150 250 L522 250 L556 250',1500);
+      if(run!==RUN)return;
+      toast('🧪 Electrical → chemical. The signal crosses the gap!',2600);
+      const chem=svg.querySelector('#chem'); const dots=[];
+      for(let i=0;i<14;i++){dots.push(svgEl('circle',{cx:560,cy:226+Math.random()*50,r:4.5,fill:'#ffc94a',filter:'url(#glow)'},chem))}
+      await tween(slow?2600:700,k=>dots.forEach((d,i)=>{d.setAttribute('cx',560+k*(30+(i%3)*3));d.setAttribute('cy',+d.getAttribute('cy')+Math.sin(k*9+i)*.6)}));
+      dots.forEach(d=>d.remove());
+      if(run!==RUN)return;
+      toast('⚡ Chemical → electrical again');
+      await travel(svg,'M592 250 L622 250 L680 250 L800 250',1200,'#7fc8ff');
+      fired++; learn('impulse');
+      if(fired===1){setTask(3);
+        fb('The impulse moved as electricity, crossed the synapse as chemicals, then became electricity again in the next neuron.','good');
+        setTimeout(jobs,600);}
+      const b=$('#fireBtn'); if(b) b.disabled=false;
+    };
+  }
+  function jobs(){
+    say('Your nervous system has <b>three kinds</b> of neurons. 👉 For each job, tap the neuron that does it. (You can fire more impulses, too!)');
+    const J=[['Picks up a stimulus and turns it into a message','sensory'],['Carries the message from one neuron to another','inter'],['Sends the message to a muscle or gland so it reacts','motor']];
+    const w=$('#work'); const box=document.createElement('div');
+    box.innerHTML=J.map(([t,a],i)=>`<div class="card" data-a="${a}"><div style="margin-bottom:6px">${t}</div><div class="row">
+      <button class="btn" data-v="sensory">Sensory neuron</button><button class="btn" data-v="inter">Interneuron</button><button class="btn" data-v="motor">Motor neuron</button></div></div>`).join('');
+    w.appendChild(box); let ok=0;
+    box.querySelectorAll('.card').forEach(c=>c.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
+      if(c.dataset.done)return;
+      if(b.dataset.v===c.dataset.a){b.classList.add('right');c.dataset.done=1;ok++;fb('Correct!','good');
+        if(ok===3){setTask(4);finish('neuron');say('<b>Station complete!</b> Neurons pass impulses from dendrite → axon → axon tip → across the synapse → to the next dendrite.')}}
+      else{b.classList.add('wrong');setTimeout(()=>b.classList.remove('wrong'),700);fb('Not quite. Sensory = senses, inter = in between, motor = movement.','bad')}
+    }));
+  }
+};
+
+/* ---------- 3. CONTROL CENTER ---------- */
+BUILD.control=()=>{
+  function bodyView(){
+    return makeSVG(`<rect width="800" height="500" fill="#081a33"/>
+    <g opacity=".08" stroke="#3fe0ff">${[...Array(20)].map((_,i)=>`<line x1="${i*40}" y1="0" x2="${i*40}" y2="500"/><line x1="0" y1="${i*25}" x2="800" y2="${i*25}"/>`).join('')}</g>
+    <g id="body" fill="none" stroke="#9fd8ff" stroke-linecap="round" stroke-linejoin="round" opacity=".55">
+      <circle cx="300" cy="72" r="42" fill="rgba(140,200,255,.08)" stroke-width="2"/>
+      <path d="M284 112 v12 M316 112 v12" stroke-width="2"/>
+      <path d="M248 128 Q300 118 352 128 L344 290 Q300 300 256 290 Z" fill="rgba(140,200,255,.08)" stroke-width="2"/>
+      <path d="M250 132 L200 290 L188 318 M350 132 L400 290 L412 318" stroke-width="22" stroke="rgba(140,200,255,.12)"/>
+      <path d="M276 292 L266 470 M324 292 L334 470" stroke-width="26" stroke="rgba(140,200,255,.12)"/>
+    </g>
+    <g id="pns" stroke="#5ef0a0" stroke-width="3" fill="none" stroke-linecap="round">
+      <g id="armN"><path d="M300 150 L252 140 L206 286 L190 316 M206 286 L198 320 M206 286 L210 318"/><path d="M300 150 L348 140 L394 286 L410 316 M394 286 L402 320 M394 286 L390 318"/><path d="M252 140 L232 200 M348 140 L368 200"/></g>
+      <g id="legN"><path d="M300 270 L278 292 L268 466 M278 292 L262 380"/><path d="M300 270 L322 292 L332 466 M322 292 L338 380"/></g>
+      <path d="M300 180 L262 190 M300 180 L338 190 M300 215 L264 225 M300 215 L336 225 M300 245 L266 255 M300 245 L334 255" opacity=".7"/>
+    </g>
+    <g id="cns">
+      <line id="cord" x1="300" y1="100" x2="300" y2="272" stroke="#ffc94a" stroke-width="8" stroke-linecap="round"/>
+      <ellipse id="brain" cx="300" cy="64" rx="30" ry="24" fill="#ff9cc8"/>
+      <path d="M278 58 q8 -10 16 0 q8 10 16 0 M282 72 q8 -8 16 0 q8 8 14 0" stroke="#c75c8e" stroke-width="2" fill="none"/>
+    </g>
+    <g id="sel" filter="url(#glow)"></g>
+    <g font-family="Lexend, system-ui, sans-serif" font-size="16" font-weight="700" id="tags"></g>
+    <g transform="translate(470 70)" font-family="Lexend, system-ui, sans-serif">
+      <rect width="300" height="150" rx="16" fill="rgba(255,201,74,.08)" stroke="#ffc94a" stroke-dasharray="6 6"/>
+      <text x="16" y="30" fill="#ffc94a" font-size="18" font-weight="800">Central Nervous System</text>
+      <text x="16" y="52" fill="#cfe3ff" font-size="14">CNS: the control center</text>
+      <text id="cnsList" x="16" y="84" fill="#fff" font-size="16"></text>
+      <rect y="180" width="300" height="150" rx="16" fill="rgba(94,240,160,.08)" stroke="#5ef0a0" stroke-dasharray="6 6"/>
+      <text x="16" y="210" fill="#5ef0a0" font-size="18" font-weight="800">Peripheral Nervous System</text>
+      <text x="16" y="232" fill="#cfe3ff" font-size="14">PNS: nerves branching out to the body</text>
+      <text id="pnsList" x="16" y="264" fill="#fff" font-size="16"></text>
+    </g>`);
+  }
+  let svg=bodyView();
+  panelShell({kicker:'Station 3',title:'Control Center',tasks:['Sort the parts: CNS or PNS','Explore the 3 parts of the brain','Predict: what if the brain stem were hurt?']});
+  say('Your nervous system has <b>two parts</b>. 👉 Tap a body part below, then tap the system it belongs to.');
+  const ITEMS=[['brain','Brain','cns'],['cord','Spinal cord','cns'],['armN','Nerves in the arms','pns'],['legN','Nerves in the legs','pns']];
+  work(`<div class="chips" id="chips">${ITEMS.map(([k,l])=>`<button class="chip" data-k="${k}">${l}</button>`).join('')}</div>
+    <div class="bins"><button class="bin cns" data-b="cns"><h5>CNS</h5><div class="in" id="cIn"></div></button>
+    <button class="bin pns" data-b="pns"><h5>PNS</h5><div class="in" id="pIn"></div></button></div>`);
+  let picked=null, placed=0; const lists={cns:[],pns:[]};
+  const highlight=k=>{const sel=svg.querySelector('#sel');sel.innerHTML='';if(!k)return;const src=svg.querySelector('#'+k);const c=src.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));c.setAttribute('class','pulse');c.style.stroke='#fff';if(k!=='brain'){c.style.fill='none';c.setAttribute('stroke-width',k==='cord'?10:5)}sel.appendChild(c)};
+  document.querySelectorAll('#chips .chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('#chips .chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');picked=c;highlight(c.dataset.k);fb('Now tap CNS or PNS.','info')});
+  document.querySelectorAll('.bin').forEach(b=>b.onclick=()=>{
+    if(!picked){fb('First tap a body part.','info');return}
+    const it=ITEMS.find(x=>x[0]===picked.dataset.k);
+    if(it[2]===b.dataset.b){
+      picked.classList.remove('sel');picked.classList.add('placed');lists[it[2]].push(it[1]);
+      (it[2]==='cns'?$('#cIn'):$('#pIn')).innerHTML=lists[it[2]].join('<br>');
+      svg.querySelector(it[2]==='cns'?'#cnsList':'#pnsList').innerHTML=lists[it[2]].map((t,i)=>`<tspan x="16" dy="${i?22:0}">• ${t}</tspan>`).join('');
+      fb(it[2]==='cns'?`Yes! The ${it[1].toLowerCase()} is part of the control center.`:`Yes! These nerves branch out from the CNS to the rest of the body.`,'good');
+      picked=null;highlight(null);placed++;
+      if(it[0]==='brain')learn('brain'); if(it[0]==='cord')learn('spinal cord');
+      if(placed===4){setTask(1);setTimeout(brain,900)}
+    } else {fb(b.dataset.b==='cns'?'Hmm. The CNS is only the brain and spinal cord.':'Hmm. The PNS is the nerves that branch OUT. This part is in the center.','bad')}
+  });
+  function brain(){
+    svg=makeSVG(`<rect width="800" height="500" fill="#0b1a33"/>
+     <circle cx="380" cy="230" r="230" fill="#ff9cc8" opacity=".06" filter="url(#softglow)"/>
+     <text x="24" y="38" fill="#9fb6d1" font-size="16" font-family="Lexend, system-ui, sans-serif">Side view of the brain (facing left)</text>
+     <g id="bstem"><path class="hl" d="M402 300 q14 70 6 140" stroke="#ffc94a" stroke-width="64" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+       <path d="M392 290 q20 80 8 150 l40 0 q10 -80 -6 -160 z" fill="#e8b48f"/></g>
+     <g id="cereb"><path class="hl" d="M470 330 a74 52 0 1 0 0.1 0" fill="none" stroke="#ffc94a" stroke-width="16" filter="url(#glow)"/>
+       <ellipse cx="500" cy="318" rx="80" ry="54" fill="#d7849f"/>
+       ${[0,1,2,3,4].map(i=>`<path d="M432 ${296+i*11} q68 ${-12+i*2} 136 0" stroke="#a9546f" stroke-width="3" fill="none"/>`).join('')}</g>
+     <g id="cbrum"><path class="hl" d="M180 250 C150 120 300 40 430 60 C560 75 640 160 600 260 C560 320 480 300 420 290 C340 300 230 330 180 250 Z" fill="none" stroke="#ffc94a" stroke-width="16" filter="url(#glow)"/>
+       <path d="M180 250 C150 120 300 40 430 60 C560 75 640 160 600 260 C560 320 480 300 420 290 C340 300 230 330 180 250 Z" fill="#ff9cc8"/>
+       <g stroke="#d0628f" stroke-width="4" fill="none" stroke-linecap="round">
+        <path d="M230 160 q30 -30 60 0 t60 -10 t60 10"/><path d="M220 220 q40 -20 70 10 t70 -10 t60 0 t60 -20"/><path d="M300 110 q30 30 70 0 t70 10"/>
+        <path d="M480 120 q20 40 60 20"/><path d="M420 200 q30 -40 70 -10 t70 -20"/><path d="M250 270 q30 -20 60 0"/><path d="M340 250 q40 -30 80 0"/></g></g>
+     <g font-family="Lexend, system-ui, sans-serif" font-weight="800" font-size="18" id="blabels"></g>`);
+    const parts=[
+      ['cbrum','Cerebrum','Understands what your senses take in, controls movement, and handles thinking, learning, and remembering.',380,175],
+      ['cereb','Cerebellum','Coordinates your muscles and helps you keep your balance.',500,400],
+      ['bstem','Brain stem','Controls actions you don’t have to think about, like breathing and heartbeat.',460,470]];
+    say('The brain has <b>three main parts</b>. 👉 <b>Tap each part</b> to find out its job.');
+    setTask(1);
+    const wk=work(`<div id="bcards"></div>`); const seen=new Set();
+    parts.forEach(([id,name,job,lx,ly])=>hitify(svg.querySelector('#'+id),name,()=>{
+      svg.querySelector('#'+id+' .hl').style.opacity=.6;setTimeout(()=>{const h=svg.querySelector('#'+id+' .hl');if(h)h.style.opacity=''},900);
+      if(!seen.has(id)){seen.add(id);const t=svgEl('text',{x:lx,y:ly,fill:'#fff','text-anchor':'middle',stroke:'#0b1a33','stroke-width':5,'paint-order':'stroke'},svg.querySelector('#blabels'));t.textContent=name;
+        $('#bcards').insertAdjacentHTML('beforeend',`<div class="card"><h4>${name}</h4>${job}</div>`)}
+      fb(`${name}: ${job}`,'good');
+      if(seen.size===3&&!wk.dataset.q){wk.dataset.q=1;setTask(2);setTimeout(predict,600)}
+    }));
+  }
+  function predict(){
+    say('🔮 <b>Predict:</b> What could happen if a person’s <b>brain stem</b> were damaged?');
+    const w=$('#work'); const d=document.createElement('div'); d.className='row'; d.style.flexDirection='column';
+    d.innerHTML=`<button class="btn" data-a="bal">They might have trouble keeping their balance.</button>
+      <button class="btn" data-a="ok">They could lose control of breathing and heartbeat.</button>
+      <button class="btn" data-a="mem">They might forget their friend’s name.</button>`;
+    w.prepend(d);
+    d.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
+      if(b.dataset.a==='ok'){b.classList.add('right');fb('Right. The brain stem controls automatic actions that keep you alive, like breathing and heartbeat.','good');
+        setTask(3);finish('control');say('<b>Station complete!</b> The CNS (brain + spinal cord) is the control center. The PNS carries messages between the CNS and the rest of the body.')}
+      else{b.classList.add('wrong');fb(b.dataset.a==='bal'?'Balance is the cerebellum’s job. Which part handles automatic actions?':'Memory is the cerebrum’s job. Which part handles automatic actions?','bad')}
+    });
+  }
+};
+
+/* ---------- 4. REFLEX TEST ---------- */
+BUILD.reflex=()=>{
+  const svg=makeSVG(`<rect width="800" height="500" fill="#0a1830"/>
+   <text x="24" y="38" fill="#9fb6d1" font-size="16" font-family="Lexend, system-ui, sans-serif">Knee reflex: side view (shown in slow motion)</text>
+   <!-- brain -->
+   <g id="rBrain"><ellipse cx="200" cy="92" rx="56" ry="40" fill="#ff9cc8"/><path d="M160 86 q12 -14 24 0 t24 0 t24 0 M168 104 q14 -10 28 0 t28 0" stroke="#c75c8e" stroke-width="3" fill="none"/></g>
+   <circle id="brainGlow" cx="200" cy="92" r="70" fill="#ffc94a" opacity="0" filter="url(#softglow)"/>
+   <!-- spinal cord -->
+   <rect x="186" y="130" width="28" height="300" rx="14" fill="#ffc94a" opacity=".9"/>
+   ${[0,1,2,3,4,5,6].map(i=>`<rect x="174" y="${140+i*42}" width="52" height="30" rx="10" fill="none" stroke="#e7d7b0" stroke-width="3" opacity=".45"/>`).join('')}
+   <text x="120" y="455" fill="#ffc94a" font-size="15" font-family="Lexend, system-ui, sans-serif" font-weight="700">Spinal cord</text>
+   <!-- chair & leg -->
+   <rect x="300" y="350" width="240" height="18" rx="6" fill="#3a4f74"/><rect x="310" y="368" width="12" height="110" fill="#3a4f74"/>
+   <path d="M300 330 L520 330" stroke="#f3c9a3" stroke-width="46" stroke-linecap="round"/>
+   <g id="shin" transform="rotate(0 520 330)"><path d="M520 330 L520 460" stroke="#f3c9a3" stroke-width="40" stroke-linecap="round"/><path d="M505 470 h50 a12 12 0 0 1 0 24 h-50 z" fill="#1d2f52"/></g>
+   <circle cx="528" cy="330" r="10" fill="#e9a882"/>
+   <path id="muscle" d="M330 312 Q420 296 500 314" stroke="#ff7a6b" stroke-width="10" fill="none" stroke-linecap="round" opacity=".55"/>
+   <!-- nerve paths (faint) -->
+   <path d="M532 340 C470 410 300 360 214 300" stroke="#3fe0ff" stroke-width="3" fill="none" stroke-dasharray="6 8" opacity=".5"/>
+   <path d="M214 316 C300 300 380 290 430 306" stroke="#ff7a6b" stroke-width="3" fill="none" stroke-dasharray="6 8" opacity=".5"/>
+   <path d="M200 296 L200 135" stroke="#ffc94a" stroke-width="3" fill="none" stroke-dasharray="6 8" opacity=".6"/>
+   <g font-family="Lexend, system-ui, sans-serif" font-size="14" font-weight="700"><text x="380" y="420" fill="#3fe0ff">sensory neuron</text><text x="300" y="288" fill="#ff7a6b">motor neuron</text></g>
+   <!-- hammer -->
+   <g id="hammer" transform="rotate(-40 660 250)"><rect x="652" y="250" width="12" height="150" rx="5" fill="#c9a37a"/><path d="M620 236 h80 a14 14 0 0 1 0 28 h-80 a14 14 0 0 1 0 -28z" fill="#ff7a6b"/></g>
+   <rect id="hammerHit" x="590" y="200" width="160" height="230" fill="transparent"/>
+   <g id="timeline" transform="translate(460 60)" font-family="Lexend, system-ui, sans-serif" font-size="14"></g>`);
+  panelShell({kicker:'Station 4',title:'Reflex Test',added:true,tasks:['Tap the knee and watch the signal','Find who “decides” first','Test your own reaction time (3 tries)','Compare reflex vs. thinking']});
+  say('A <b>reflex</b> is an automatic response that happens without you thinking about it. 👉 Tap the <b>hammer</b> (or the button) to tap the knee.');
+  work(`<button class="btn cy" id="tapBtn">🔨 Tap the knee</button>`);
+  const hammer=svg.querySelector('#hammer'), shin=svg.querySelector('#shin'), bg=svg.querySelector('#brainGlow');
+  let busy=false, taps=0;
+  async function tap(){
+    if(busy)return;busy=true;const run=RUN;
+    await tween(260,k=>hammer.setAttribute('transform',`rotate(${-40+k*40} 660 250)`));
+    toast('Stimulus: the hammer taps the tendon below the knee');
+    hammer.setAttribute('transform','rotate(-40 660 250)');
+    await travel(svg,'M532 340 C470 410 300 360 214 300',1300,'#3fe0ff');
+    if(run!==RUN)return;
+    toast('Spinal cord sends a message straight back!',1800);
+    await travel(svg,'M214 316 C300 300 380 290 430 306',900,'#ff7a6b','sparkCoral');
+    svg.querySelector('#muscle').setAttribute('opacity',1);
+    await tween(300,k=>shin.setAttribute('transform',`rotate(${-48*k} 520 330)`));
+    toast('🦵 KICK! The leg moved before the brain knew.',2000);
+    const brainTrip=travel(svg,'M200 296 L200 135',1600,'#ffc94a','sparkGold');
+    await tween(500,k=>shin.setAttribute('transform',`rotate(${-48*(1-k)} 520 330)`));
+    svg.querySelector('#muscle').setAttribute('opacity',.55);
+    await brainTrip; if(run!==RUN)return;
+    bg.setAttribute('opacity',.7); toast('🧠 Brain: “Hey… my leg just moved!”',2200);
+    await sleep(900); bg.setAttribute('opacity',0);
+    taps++; busy=false; learn('reflex');
+    if(taps===1){setTask(1);ask()}
+  }
+  hitify(svg.querySelector('#hammerHit'),'Reflex hammer',tap); $('#tapBtn').onclick=tap;
+  function ask(){
+    say('Watch it again if you like. 👉 Which part sent the message <b>back to the leg muscle</b>?');
+    const w=$('#work'); const d=document.createElement('div');d.className='row';
+    d.innerHTML=`<button class="btn" data-a="brain">🧠 The brain</button><button class="btn" data-a="cord">🟨 The spinal cord</button>`;
+    w.appendChild(d);
+    d.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
+      if(b.dataset.a==='cord'){b.classList.add('right');fb('Yes! In a reflex, the spinal cord answers right away. The brain finds out afterward. That saves time.','good');setTask(2);d.remove();game()}
+      else{b.classList.add('wrong');fb('Watch the colors. Did the blue signal reach the brain before the leg kicked?','bad')}
+    });
+  }
+  function game(){
+    say('Now YOU are the test subject! When the box turns <b>green</b>, click it as fast as you can. This response goes through your <b>brain</b>. You get 3 tries.');
+    stage.insertAdjacentHTML('beforeend',`<div class="react idle" id="rx" tabindex="0" role="button" aria-label="Reaction test box">Click here to begin</div>`);
+    const rx=$('#rx'); let state='idle', t0=0, timer=null; const times=[];
+    const tl=document.createElement('div'); tl.className='card'; tl.innerHTML='<h4>Your times</h4><div id="times" class="small">—</div>'; $('#work').appendChild(tl);
+    function begin(){state='wait';rx.className='react wait';rx.textContent='Wait for green…';timer=setTimeout(()=>{state='go';rx.className='react goGreen';rx.textContent='CLICK!';t0=performance.now()},1200+Math.random()*2200)}
+    function hit(){
+      if(state==='idle'){begin();return}
+      if(state==='wait'){clearTimeout(timer);state='idle';rx.className='react idle';rx.textContent='Too soon! Click to try again.';return}
+      if(state==='go'){const ms=Math.round(performance.now()-t0);times.push(ms);
+        $('#times').innerHTML=times.map((t,i)=>`Try ${i+1}: <b>${(t/1000).toFixed(2)} s</b>`).join('<br>');
+        if(times.length<3){state='idle';rx.className='react idle';rx.textContent=`${(ms/1000).toFixed(2)} seconds! Click for try ${times.length+1}.`}
+        else{state='done';const best=Math.min(...times);S.data.react=times;save();rx.remove();setTask(3);compare(best)}}
+    }
+    rx.addEventListener('pointerdown',hit);rx.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();hit()}});
+  }
+  function compare(best){
+    const tl=svg.querySelector('#timeline'); const max=Math.max(best,400);
+    const W=300, bar=(y,ms,c,l)=>`<text x="0" y="${y-6}" fill="#cfe3ff">${l}</text><rect x="0" y="${y}" width="${W}" height="16" rx="8" fill="rgba(255,255,255,.08)"/><rect x="0" y="${y}" width="${Math.max(6,W*ms/max)}" height="16" rx="8" fill="${c}"/><text x="${Math.max(6,W*ms/max)+6}" y="${y+13}" fill="#fff" font-weight="700">${(ms/1000).toFixed(2)} s</text>`;
+    tl.innerHTML=`<rect x="-14" y="-24" width="${W+90}" height="110" rx="12" fill="rgba(4,12,28,.85)" stroke="rgba(140,190,255,.25)"/>`+bar(0,50,'#3fe0ff','Knee reflex (about)')+bar(52,best,'#ffc94a','Your best click');
+    say(`Your best click took <b>${(best/1000).toFixed(2)} seconds</b>. A knee reflex takes only about <b>0.05 seconds</b>. 👉 Why is the click slower?`);
+    const d=document.createElement('div');d.className='row';d.style.flexDirection='column';
+    d.innerHTML=`<button class="btn" data-a="1">The message had to travel to the brain, and the brain had to decide.</button><button class="btn" data-a="0">Fingers are weaker than legs.</button><button class="btn" data-a="0">The computer was slow.</button>`;
+    $('#work').prepend(d);
+    d.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
+      if(b.dataset.a==='1'){b.classList.add('right');fb('Yes! Reflexes skip the brain’s decision. That makes them super fast, which helps protect you (like pulling your hand off a hot stove).','good');setTask(4);finish('reflex');
+        say('<b>Station complete!</b> Most messages travel through the spinal cord to the brain. In a reflex, the spinal cord sends the response right back.')}
+      else{b.classList.add('wrong');fb('Think about the path. Where did the click message have to go?','bad')}
+    });
+  }
+};
+
+/* ---------- 5. CHEMICAL MESSENGERS (ENDOCRINE) ---------- */
+BUILD.gland=()=>{
+  const LOOP='M110 70 H470 a50 50 0 0 1 50 50 V290 a50 50 0 0 1 -50 50 H110 a50 50 0 0 1 -50 -50 V120 a50 50 0 0 1 50 -50 Z';
+  const svg=makeSVG(`<rect width="800" height="500" fill="#0b1530"/>
+   <text x="24" y="34" fill="#9fb6d1" font-size="15" font-family="Lexend, system-ui, sans-serif">Model: blood flowing through the body</text>
+   <path d="${LOOP}" fill="none" stroke="#7a1f33" stroke-width="44"/>
+   <path d="${LOOP}" fill="none" stroke="#b8324f" stroke-width="34"/>
+   <path id="loop" d="${LOOP}" fill="none" stroke="#e0566f" stroke-width="2" stroke-dasharray="3 9" opacity=".6"/>
+   <g id="sugar"></g><g id="horm"></g>
+   <g id="panc" transform="translate(290 360)">
+     <circle r="60" fill="#ffc94a" opacity="0" filter="url(#softglow)" id="pGlow"/>
+     <path d="M-70 -6 C-50 -30 10 -22 30 -18 C60 -14 80 -30 90 -14 C98 2 70 14 40 12 C0 10 -40 26 -66 14 C-80 8 -78 2 -70 -6 Z" fill="#f2b56b" stroke="#c9873e" stroke-width="3"/>
+     ${[-50,-30,-10,10,30,50,70].map(x=>`<circle cx="${x}" cy="0" r="4" fill="#d8954d"/>`).join('')}
+     <text y="44" text-anchor="middle" fill="#ffc94a" font-family="Lexend, system-ui, sans-serif" font-weight="800" font-size="16">Pancreas (a gland)</text>
+   </g>
+   <g transform="translate(600 40)" font-family="Lexend, system-ui, sans-serif">
+     <text x="0" y="0" fill="#cfe3ff" font-size="15" font-weight="700">Blood sugar</text>
+     <rect x="0" y="14" width="44" height="280" rx="22" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.2)"/>
+     <rect x="0" y="${14+280*(1-120/200)}" width="44" height="${280*40/200}" fill="#5ef0a0" opacity=".25"/>
+     <rect id="mfill" x="6" y="150" width="32" height="140" rx="16" fill="#ffc94a"/>
+     <text x="54" y="${14+280*(1-120/200)+30}" class="meterlbl" fill="#5ef0a0">healthy</text><text x="54" y="${14+280*(1-120/200)+46}" class="meterlbl">zone</text>
+     <text x="54" y="34" class="meterlbl">HIGH</text><text x="54" y="290" class="meterlbl">LOW</text>
+     <text id="mval" x="22" y="318" text-anchor="middle" fill="#fff" font-size="18" font-weight="800">100</text>
+   </g>
+   <g transform="translate(60 400)" font-family="Lexend, system-ui, sans-serif">
+     <rect width="690" height="84" rx="10" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.12)"/>
+     <rect y="${84*(1-120/200)}" width="690" height="${84*40/200}" fill="#5ef0a0" opacity=".12"/>
+     <polyline id="graph" fill="none" stroke="#ffc94a" stroke-width="3" points=""/>
+     <text x="8" y="16" class="meterlbl" font-size="12">Blood sugar over time →</text>
+   </g>
+   <g transform="translate(150 140)" font-family="Lexend, system-ui, sans-serif" font-size="15">
+     <text x="0" y="0" fill="#9fb6d1" font-weight="700">KEY</text>
+     <circle cx="8" cy="24" r="6" fill="#fff6c9"/><text x="22" y="29" fill="#cfe3ff">sugar in the blood</text>
+     <circle cx="8" cy="52" r="6" fill="#3fe0ff"/><text x="22" y="57" fill="#cfe3ff">insulin (brings sugar DOWN)</text>
+     <circle cx="8" cy="80" r="6" fill="#ff7a6b"/><text x="22" y="85" fill="#cfe3ff">glucagon (brings sugar UP)</text>
+     <text id="pState" x="0" y="130" fill="#ffc94a" font-weight="700">Pancreas: resting</text>
+   </g>`);
+  panelShell({kicker:'Station 5',title:'Chemical Messengers',added:true,tasks:['Predict what happens after a snack','Eat a snack and watch','Run a race and watch','Explain negative feedback']});
+  learn('gland');
+  say('Your body has a second control system: the <b>endocrine system</b>. <b>Glands</b> release chemical messengers called <b>hormones</b> into the blood. The pancreas is a gland that helps keep your blood sugar in the healthy zone. <br>🔮 After you eat a snack, your blood sugar goes <b>up</b>. What will your body do?');
+  // sim state
+  const loop=svg.querySelector('#loop'), L=loop.getTotalLength();
+  let level=100, intake=0, use=0, hist=[], ins=0, glu=0, sugarDots=[], hormDots=[], tick=0;
+  const run=RUN;
+  const PANC_AT=(()=>{let best=0,bd=1e9;for(let s=0;s<L;s+=4){const p=loop.getPointAtLength(s);const d=(p.x-290)**2+(p.y-340)**2;if(d<bd){bd=d;best=s}}return best})();
+  function ensureSugar(){const want=Math.round(level/6);const g=svg.querySelector('#sugar');
+    while(sugarDots.length<want){sugarDots.push({s:Math.random()*L,o:(Math.random()-.5)*20,el:svgEl('circle',{r:4,fill:'#fff6c9'},g)})}
+    while(sugarDots.length>want){sugarDots.pop().el.remove()}}
+  function step(){
+    if(run!==RUN)return;
+    tick++;
+    // inputs
+    const inNow=Math.min(intake,1.6); intake-=inNow; const useNow=Math.min(use,1.6); use-=useNow;
+    // gland response: negative feedback
+    ins=level>108?(level-100)*.035:0; glu=level<92?(100-level)*.035:0;
+    level+=inNow-useNow-ins+glu + (100-level)*.002;
+    level=Math.max(20,Math.min(195,level));
+    // release hormone dots
+    const g=svg.querySelector('#horm');
+    if(ins>0.05&&tick%Math.max(2,Math.round(6/ins))===0)hormDots.push({s:PANC_AT,life:0,el:svgEl('circle',{r:6,fill:'#3fe0ff',filter:'url(#glow)'},g)});
+    if(glu>0.05&&tick%Math.max(2,Math.round(6/glu))===0)hormDots.push({s:PANC_AT,life:0,el:svgEl('circle',{r:6,fill:'#ff7a6b',filter:'url(#glow)'},g)});
+    svg.querySelector('#pGlow').setAttribute('opacity',Math.min(.9,(ins+glu)*.6));svg.querySelector('#pState').textContent=ins>.05?'Pancreas: releasing insulin':glu>.05?'Pancreas: releasing glucagon':'Pancreas: resting';
+    // move dots
+    ensureSugar();
+    sugarDots.forEach(d=>{d.s=(d.s+2.2)%L;const p=loop.getPointAtLength(d.s);d.el.setAttribute('cx',p.x+d.o*.5);d.el.setAttribute('cy',p.y+d.o*.5)});
+    hormDots=hormDots.filter(d=>{d.s=(d.s+3.2)%L;d.life++;const p=loop.getPointAtLength(d.s);d.el.setAttribute('cx',p.x);d.el.setAttribute('cy',p.y);d.el.setAttribute('opacity',Math.max(0,1-d.life/120));if(d.life>120){d.el.remove();return false}return true});
+    // meter
+    const h=280*level/200; const f=svg.querySelector('#mfill'); f.setAttribute('y',14+280-h+4); f.setAttribute('height',Math.max(0,h-8));
+    const inZone=level>=80&&level<=120; f.setAttribute('fill',inZone?'#5ef0a0':'#ffc94a');
+    svg.querySelector('#mval').textContent=Math.round(level);
+    if(tick%3===0){hist.push(level);if(hist.length>230)hist.shift();svg.querySelector('#graph').setAttribute('points',hist.map((v,i)=>`${i*3},${84-84*v/200}`).join(' '))}
+    watch(level,inZone);
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+  let phase='predict', peaked=false;
+  const w=work(`<div class="row" id="pred" style="flex-direction:column">
+    <button class="btn" data-a="1">The pancreas will release a hormone that brings blood sugar back down.</button>
+    <button class="btn" data-a="0">Nothing. Blood sugar will stay high forever.</button>
+    <button class="btn" data-a="0">The body will push blood sugar even higher.</button></div>
+    <div class="row" id="acts" style="display:none"><button class="btn go" id="snack">🍎 Eat a snack</button><button class="btn go" id="race" disabled>🏃 Run a race</button></div>`);
+  w.querySelectorAll('#pred .btn').forEach(b=>b.onclick=()=>{
+    if(b.dataset.a==='1'){b.classList.add('right');fb('Good prediction! Let’s test it.','good');setTimeout(()=>{$('#pred').remove();$('#acts').style.display='flex';setTask(1);
+      say('👉 Tap <b>Eat a snack</b>. Watch the sugar rise, then watch the pancreas send out <b style="color:#3fe0ff">insulin</b> (blue).')},700)}
+    else{b.classList.add('wrong');fb('Let’s see if that’s true. Most body systems work to stay balanced. Try another answer.','bad')}
+  });
+  $('#snack').onclick=()=>{intake+=70;peaked=false;if(phase==='predict')phase='snack';fb('Snack eaten! Sugar is entering the blood…','info')};
+  $('#race').onclick=()=>{use+=70;peaked=false;if(phase==='race0')phase='race';fb('Running uses up sugar for energy…','info')};
+  function watch(lv,inZone){
+    if(phase==='snack'){ if(lv>125)peaked=true; if(peaked&&inZone&&intake<.1&&ins<.25){phase='race0';setTask(2);$('#race').disabled=false;
+      fb('It worked! Insulin helped bring blood sugar back into the healthy zone, and then the pancreas slowed down.','good');
+      say('Now 👉 tap <b>Run a race</b>. Your muscles use up sugar. What does the pancreas do when sugar gets too <b>low</b>?')}}
+    else if(phase==='race'){ if(lv<75)peaked=true; if(peaked&&inZone&&use<.1&&glu<.25){phase='explain';setTask(3);
+      fb('This time the pancreas released glucagon (red), which raised blood sugar back up.','good');explain()}}
+  }
+  function explain(){
+    say('This is called <b>negative feedback</b>: when something changes, the body responds to <b>undo</b> the change, then stops. 👉 Once blood sugar is back in the healthy zone, what does the pancreas do?');
+    const d=document.createElement('div');d.className='row';d.style.flexDirection='column';
+    d.innerHTML=`<button class="btn" data-a="1">It slows down or stops releasing hormones.</button><button class="btn" data-a="0">It keeps releasing more and more hormones.</button>`;
+    $('#work').prepend(d);
+    d.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
+      if(b.dataset.a==='1'){b.classList.add('right');learn('negative feedback');setTask(4);finish('gland');
+        fb('Correct! Like a thermostat, it turns off when things are back to normal.','good');
+        $('#work').insertAdjacentHTML('beforeend',`<div class="card"><h4>Two control systems</h4>
+          <table style="width:100%;font-size:.9rem;border-collapse:collapse">
+          <tr><td></td><td><b style="color:var(--cyan)">Nervous</b></td><td><b style="color:var(--gold)">Endocrine</b></td></tr>
+          <tr><td>Messages</td><td>nerve impulses</td><td>hormones</td></tr>
+          <tr><td>Travel by</td><td>neurons</td><td>the blood</td></tr>
+          <tr><td>Speed</td><td>very fast</td><td>slower, lasts longer</td></tr></table></div>`);
+        say('<b>Station complete!</b> The nervous system and the endocrine system work together to control your body’s processes.')}
+      else{b.classList.add('wrong');fb('Watch the meter. Would the level stay in the healthy zone if it kept going?','bad')}
+    });
+  }
+};
+
+/* ---------- 6. MISSION REPORT ---------- */
+BUILD.report=()=>{
+  const svg=makeSVG(`<rect width="800" height="500" fill="#071428"/>
+   <g font-family="Lexend, system-ui, sans-serif" text-anchor="middle">
+   ${[['🦈','Stimulus',90],['👁️','Senses',220],['⚡','Neurons',350],['🧠','Brain / CNS',480],['💪','Muscles',610],['🏊','Response',730]].map(([e,t,x],i)=>`
+     <g transform="translate(${x} 200)"><circle r="46" fill="rgba(63,224,255,.08)" stroke="#3fe0ff" stroke-width="2"/><text y="12" font-size="34">${e}</text><text y="76" fill="#cfe3ff" font-size="15" font-weight="700">${t}</text></g>
+     ${i<5?`<path d="M${x+52} 200 h${130-104}" stroke="#3fe0ff" stroke-width="3" marker-end="url(#ar)"/>`:''}`).join('')}
+   <text x="400" y="80" fill="#fff" font-size="26" font-weight="800">How your body controls itself</text>
+   <text x="400" y="360" fill="#ffc94a" font-size="17" font-weight="700">+ Glands send hormones through the blood (endocrine system)</text>
+   <text x="400" y="392" fill="#5ef0a0" font-size="17" font-weight="700">+ Reflexes: the spinal cord can respond without waiting for the brain</text>
+   </g><defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#3fe0ff"/></marker></defs>`);
+  const st=STATIONS.slice(1,6).map(s=>`${S.done.includes(s.id)?'✅':'⬜'} ${s.name}`).join('<br>');
+  const rt=S.data.react?`Your reaction times: ${S.data.react.map(t=>(t/1000).toFixed(2)+' s').join(', ')}`:'Reaction test not done yet.';
+  panel.innerHTML=`<div class="kicker">Station 6</div><h2>Mission Report</h2>
+   <div class="say" id="say">Answer the 3 big questions in your own words. Use the word bank. Then tap <b>Copy my report</b> and paste it where your teacher tells you.</div>
+   <div class="card small">${st}<br>${rt}</div>
+   <label for="nm"><b>Name</b></label><textarea id="nm" style="min-height:44px"></textarea>
+   <label for="q1"><b>1. Which systems control processes in the human body?</b></label>
+   <textarea id="q1" placeholder="Two systems control my body. They are the ___ system and the ___ system…"></textarea>
+   <label for="q2"><b>2. How does the body sense and respond to stimuli?</b></label>
+   <textarea id="q2" placeholder="First, my senses pick up a stimulus. Then…"></textarea>
+   <label for="q3"><b>3. How do the cells of the nervous system respond to stimuli?</b></label>
+   <textarea id="q3" placeholder="A neuron picks up the message with its dendrites. Then…"></textarea>
+   <div class="small" style="margin-top:6px">Word bank:</div><div class="vocab" id="vocab">${vocabHTML()}</div>
+   <div class="row" style="margin-top:12px"><button class="btn go" id="copy">📋 Copy my report</button></div>
+   <div class="fb" id="fb" role="status"></div>
+   <textarea id="fallback" style="display:none" readonly aria-label="Report text to copy"></textarea>
+   <div class="nav"><button class="btn ghost" id="backBtn">◀ Back</button><span></span></div>`;
+  speakText=$('#say').textContent;
+  $('#backBtn').onclick=()=>go(cur-1);
+  const R=store.get('answers',{});['nm','q1','q2','q3'].forEach(k=>{const t=$('#'+k);t.value=R[k]||'';t.oninput=()=>{R[k]=t.value;store.set('answers',R)}});
+  $('#copy').onclick=async()=>{
+    const txt=`MISSION: SIGNAL — Controlling Processes (G7T2L5)\nName: ${$('#nm').value}\nStations finished: ${S.done.filter(x=>x!=='report').length} of 5\n${rt}\n\n1. Which systems control processes in the human body?\n${$('#q1').value}\n\n2. How does the body sense and respond to stimuli?\n${$('#q2').value}\n\n3. How do the cells of the nervous system respond to stimuli?\n${$('#q3').value}\n`;
+    try{await navigator.clipboard.writeText(txt);fb('Copied! Now paste it where your teacher asked.','good')}
+    catch(e){const f=$('#fallback');f.style.display='block';f.value=txt;f.select();fb('Copying was blocked. Your report is in the box below. Select it all and copy it.','info')}
+    if(!S.done.includes('report')){S.done.push('report');save();renderTabs()}
+  };
+};
+
+/* teacher modal */
+$('#teachBtn').onclick=()=>{$('#teach').classList.add('open');$('#closeTeach').focus()};
+$('#closeTeach').onclick=()=>$('#teach').classList.remove('open');
+$('#teach').onclick=e=>{if(e.target.id==='teach')$('#teach').classList.remove('open')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#teach').classList.remove('open')});
+$('#unlockAll').onclick=()=>{S.unlocked=STATIONS.length-1;save();renderTabs();$('#teach').classList.remove('open')};
+$('#resetAll').onclick=()=>{S.done=[];S.unlocked=1;S.data={};S.words=[];save();store.set('answers',{});$('#teach').classList.remove('open');go(0)};
+
+go(0);
+</script>
+</body>
+</html>
